@@ -1,0 +1,61 @@
+---
+- hosts: dnac_servers
+  gather_facts: false
+  tasks:
+    - name: Set sentitive variables
+      ansible.builtin.set_fact:
+        DEVICE_USER: "{{ lookup('env', 'DEVICE_USER') }}"
+
+    - name: Set sentitive variables
+      ansible.builtin.set_fact:
+        DEVICE_PASSWORD: "{{ lookup('env', 'DEVICE_PASSWORD') }}"
+
+    - name: Set sentitive variables
+      ansible.builtin.set_fact:
+        DEVICE_SNMP_COMMUNITY: "{{ lookup('env', 'DEVICE_SNMP_COMMUNITY') }}"
+
+    - name: Load variables
+      ansible.builtin.include_vars:
+        file: ../data/02_add-devices.yaml
+        name: add_devices
+
+    - name: Receive site details
+      cisco.dnac.site_info:
+        name: '{{ item.name }}'
+      with_items:
+        - '{{ add_devices.site }}'
+      register: site_result
+    
+    - name: Set Site ID variable
+      ansible.builtin.set_fact:
+        site_id: "{{ site_result.results[0].dnac_response.response[0].id }}"
+
+    - name: Add Cat8000v to the inventory
+      cisco.dnac.network_device:
+        state: present
+        type: "NETWORK_DEVICE"
+        ipAddress: '{{ item.ipAddress }}'
+        cliTransport: "ssh"
+        userName: '{{ DEVICE_USER }}'
+        password: '{{ DEVICE_PASSWORD }}'
+        snmpVersion: "v2"
+        snmpROCommunity: '{{ DEVICE_SNMP_COMMUNITY }}'
+        snmpRWCommunity: '{{ DEVICE_SNMP_COMMUNITY }}'
+        snmpRetry: 3
+        snmpTimeout: 3
+        enablePassword:
+        computeDevice: false
+      with_items:
+        - '{{ add_devices.site }}'
+
+    - name: Pause
+      pause:
+        seconds: 60
+
+    - name: Assign the device POD site
+      cisco.dnac.assign_device_to_site:
+        device: 
+        - ip: '{{ item.ipAddress }}' 
+        siteId: '{{ site_id }}' 
+      with_items:
+        - '{{ add_devices.site }}'

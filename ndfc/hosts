@@ -1,0 +1,9 @@
+[ndfc_servers]
+198.18.133.100
+
+[all:vars]
+ansible_connection=ansible.netcommon.httpapi
+ansible_network_os=cisco.dcnm.dcnm
+ansible_httpapi_validate_certs=False
+ansible_httpapi_use_ssl=True
+ansible_httpapi_use_proxy=False

@@ -1,0 +1,24 @@
+---
+- hosts: ndfc_servers
+  gather_facts: false
+  tasks:
+    - name: Load variables
+      ansible.builtin.include_vars:
+        file: ../data/03_deploy-template.yaml
+        name: template_data
+
+    - name: Create policy including required variables
+      cisco.dcnm.dcnm_policy:
+        fabric: "{{ template_data.fabric_name }}"
+        state: merged
+        deploy: true
+        config:
+          - name: switch_freeform
+            create_additional_policy: true
+            priority: 400
+            description: ANSIBLE_DEPLOYMENT
+            policy_vars: 
+              CONF: "{{ item.conf }}"
+          - switch:
+              - ip: "{{ item.switch_mgmt_ip }}"
+      with_items: "{{ template_data.switches }}" 

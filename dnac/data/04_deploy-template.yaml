@@ -1,0 +1,5 @@
+---
+device:
+  - name: POD05_Cat8000v-0
+    config: "interface GigabitEthernet4 \n ip address 172.18.205.1 255.255.255.0 \n no shutdown"
+    ipAddress: 198.18.130.53

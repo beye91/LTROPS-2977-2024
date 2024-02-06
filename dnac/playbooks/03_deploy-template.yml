@@ -1,0 +1,128 @@
+---
+- hosts: dnac_servers
+  gather_facts: false
+  connection: local
+  tasks:
+    - name: Get timestamp from the system
+      shell: "date +%Y-%m-%d%H-%M-%S"
+      register: tstamp
+
+    - debug: var=tstamp.stdout
+
+    - name: Load variables
+      ansible.builtin.include_vars:
+        file: ../data/03_deploy-template.yaml
+        name: deploy_templates
+
+  #
+  # Project Creation
+  #
+    - name: Create dayN-Templates project 
+      cisco.dnac.configuration_template_project:
+        state: present
+        createTime: 0
+        description: string
+        name: Templates-by-Ansible
+      register: configuration_template_project_result
+
+    - name: Set Task ID
+      ansible.builtin.set_fact:
+        project_task_id: "{{ configuration_template_project_result.dnac_response.response.taskId }}"
+
+    - debug: var=project_task_id
+
+    - name: Pause
+      pause:
+        seconds: 30
+
+    - name: Get project task by id
+      cisco.dnac.task_info:
+        taskId: "{{ project_task_id }}"
+      register: result_project_task_id
+
+    - debug: var=result_project_task_id
+
+    - name: Set project ID
+      ansible.builtin.set_fact:
+        project_id: "{{ result_project_task_id.dnac_response.response.data }}"
+
+    - debug: var=project_id
+  #
+  # Template Info / Config Section
+  #
+    - name: Create an configuration_template_project
+      cisco.dnac.configuration_template_create:
+        name: "{{ item.name }}_BGP-CONFIG_{{ tstamp.stdout }}"
+        templateContent: '{{ item.config }}'
+        language: "VELOCITY"
+        projectName: "Onboarding Configuration"
+        deviceTypes:
+          - productFamily: "Routers"
+        projectId: "{{ project_id }}"
+        softwareType: "IOS-XE"
+        softwareVariant: "XE"
+      with_items:
+        - '{{ deploy_templates.device }}'
+      register: configuration_template_project_result
+
+    - debug: var=configuration_template_project_result
+
+    - name: Set Task ID
+      ansible.builtin.set_fact:
+        task_id: "{{ configuration_template_project_result.results[0].dnac_response.response.taskId }}"
+
+    - debug: var=task_id
+
+    - name: Pause
+      pause:
+        seconds: 30
+
+    - name: Get Task by id
+      cisco.dnac.task_info:
+        taskId: "{{ task_id }}"
+      register: result_task_id
+
+    - name: Set Template ID
+      ansible.builtin.set_fact:
+        template_id: "{{ (result_task_id.dnac_response.response.data | from_json).templateId }}"
+
+    - debug: var=template_id
+     
+    - name: Create Versioning
+      cisco.dnac.configuration_template_version_create:
+        comments: "COMMITTED"
+        templateId: "{{ template_id }}"
+      register: template_version_result
+
+  #
+  # Get the device infos
+  #
+    - name: Get Network Device information
+      cisco.dnac.network_device_info:
+        managementIpAddress: [ '{{ item.ipAddress }}']
+      with_items:
+        - '{{ deploy_templates.device }}'
+      register: network_device_info_result
+
+    - debug: var=network_device_info_result
+
+    - name: Set Device ID
+      ansible.builtin.set_fact:
+        device_id: "{{ network_device_info_result.results[0].dnac_response.response[0].id }}"
+
+    - debug: var=device_id
+
+  #
+  # Deploy template to device
+  #
+    - name: Deploy dayN template on device
+      cisco.dnac.configuration_template_deploy:
+        forcePushTemplate: true
+        mainTemplateId: "{{ template_id }}"
+        targetInfo:
+        - id: "{{ device_id }}"
+          type: "MANAGED_DEVICE_UUID"
+        templateId: "{{ template_id }}"
+      register: template_deploy_result
+
+    - debug: var=template_deploy_result

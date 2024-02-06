@@ -1,0 +1,47 @@
+---
+fabric_data:
+  switches: 
+    - inventory: '{
+                  "maxHops": "0",
+                  "seedIP": "198.18.130.51",
+                  "cdpSecondTimeout": 5,
+                  "snmpV3AuthProtocol": 0,
+                  "username": "",
+                  "password": "",
+                  "preserveConfig": true,
+                  "discoveryCredForLan": false,
+                  "switches": [
+                      {
+                          "ipaddr": "198.18.130.51",
+                          "sysName": "nxos9000-0",
+                          "deviceIndex": "nxos9000-0(98G1R5LJJ20)",
+                          "platform": "N9K-C9300v",
+                          "version": "10.3(1)",
+                          "serialNumber": "98G1R5LJJ20",
+                          "vdcId": 0,
+                          "vdcMac": null
+                      }
+                  ]
+                  }'
+    - inventory: '{
+                  "maxHops": "0",
+                  "seedIP": "198.18.130.52",
+                  "cdpSecondTimeout": 5,
+                  "snmpV3AuthProtocol": 0,
+                  "username": "",
+                  "password": "",
+                  "preserveConfig": true,
+                  "discoveryCredForLan": false,
+                  "switches": [
+                      {
+                          "ipaddr": "198.18.130.52",
+                          "sysName": "nxos9000-1",
+                          "deviceIndex": "nxos9000-1(935SOQI1PSU)",
+                          "platform": "N9K-C9300v",
+                          "version": "10.3(1)",
+                          "serialNumber": "935SOQI1PSU",
+                          "vdcId": 0,
+                          "vdcMac": null
+                      }
+                  ]
+                  }'

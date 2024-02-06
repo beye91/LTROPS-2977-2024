@@ -1,0 +1,50 @@
+variables:
+  IMAGE_NAME_FTD: $CI_REGISTRY_IMAGE/ftd  
+  IMAGE_TAG_FTD: "1.0"
+
+stages:
+  - build
+  - deploy
+
+build_image:
+  stage: build
+  tags:
+    - shell-runner
+  script:
+    - docker build -t $IMAGE_NAME_FTD:$IMAGE_TAG_FTD docker/ftd/.
+
+push_image:
+  stage: build
+  needs:
+    - build_image
+  tags:
+    - shell-runner
+  before_script:
+    - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
+  script:
+    - docker push $IMAGE_NAME_FTD:$IMAGE_TAG_FTD
+
+ftd_ansible_job:
+  stage: deploy
+  needs:
+    - push_image
+  tags:
+    - docker-runner
+  image: $IMAGE_NAME_FTD:$IMAGE_TAG_FTD
+  environment: FTD
+  before_script:
+    - source /root/ansible/bin/activate
+    - git config --global user.email "${GITLAB_USER_NAME}@ltrops2977.com"
+    - git config --global user.name "${GITLAB_USER_NAME}"
+  script:
+    - export VAULT_CACERT=/usr/local/share/ca-certificates/ca.crt
+    - export VAULT_TOKEN="$(vault write -field=token auth/jwt/login role=$VAULT_AUTH_ROLE jwt=$CI_JOB_JWT)"
+    - vault kv get -format json ${GITLAB_USER_NAME}/FTD | jq .data.data | jq -r 'to_entries|map("\(.key)=\(.value|tostring)")|.[]' >> ftd_vars.env
+    - export $(cat ftd_vars.env | xargs)
+    - ansible-playbook -i ftd/hosts ftd/playbooks/00_add-objects.yml
+    - git clone https://"gitlab-ci-token:${GITLAB_TOKEN}"@"${CI_REPOSITORY_URL#*@}"
+    - cp ftd/data/* ${GITLAB_USER_NAME}/ftd/data/
+    - cd ${GITLAB_USER_NAME}
+    - git add ftd/data/*
+    - git commit -m "Update from pipeline [skip ci]"
+    - git push https://"gitlab-ci-token:${GITLAB_TOKEN}"@"${CI_REPOSITORY_URL#*@}" $CI_COMMIT_BRANCH

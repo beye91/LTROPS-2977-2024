@@ -1,0 +1,13 @@
+devices:
+  nxos9000-0:
+    type: nexus
+    os: nxos
+    credentials:
+      default:
+        username: 
+        password: 
+    connections:
+      cli:
+        protocol: ssh
+        ip: 198.18.130.51
+        port: 22 

@@ -1,0 +1,6 @@
+---
+site:
+  - name: "Global/POD05/CiscoLive"
+    ipAddress: 198.18.130.53
+  - name: "Global/POD05/CiscoLive"
+    ipAddress: 198.18.130.54

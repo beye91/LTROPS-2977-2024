@@ -1,0 +1,43 @@
+variables:
+  IMAGE_NAME_DNAC: $CI_REGISTRY_IMAGE/dnac  
+  IMAGE_TAG_DNAC: "1.0"
+
+stages:
+  - build
+  - deploy
+
+build_image:
+  stage: build
+  tags:
+    - shell-runner
+  script:
+    - docker build -t $IMAGE_NAME_DNAC:$IMAGE_TAG_DNAC docker/dnac/.
+
+push_image:
+  stage: build
+  needs:
+    - build_image
+  tags:
+    - shell-runner
+  before_script:
+    - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
+  script:
+    - docker push $IMAGE_NAME_DNAC:$IMAGE_TAG_DNAC
+
+dnac_ansible_job:
+  stage: deploy
+  needs:
+    - push_image
+  tags:
+    - docker-runner
+  image: $IMAGE_NAME_DNAC:$IMAGE_TAG_DNAC
+  environment: DNAC
+  before_script:
+    - source /root/ansible/bin/activate
+  script:
+    - export VAULT_CACERT=/usr/local/share/ca-certificates/ca.crt
+    - export VAULT_TOKEN="$(vault write -field=token auth/jwt/login role=$VAULT_AUTH_ROLE jwt=$CI_JOB_JWT)"
+    - vault kv get -format json ${GITLAB_USER_NAME}/DNAC | jq .data.data | jq -r 'to_entries|map("\(.key)=\(.value|tostring)")|.[]' >> dnac_vars.env
+    - export $(cat dnac_vars.env | xargs)
+#    - ansible-playbook -i dnac/hosts dnac/playbooks/01_create-site-hierarchy.yml
+    - ansible-playbook -i dnac/hosts dnac/playbooks/02_add-devices.yml

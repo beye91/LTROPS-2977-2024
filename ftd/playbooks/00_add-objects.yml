@@ -1,0 +1,37 @@
+---
+- hosts: localhost
+  gather_facts: false
+  tasks:
+    - name: Set facts
+      set_fact:
+        sites:
+          - datacenter
+          - branch
+
+    - name: Set sentitive variables
+      ansible.builtin.set_fact:
+        FTD_HOST: "{{ lookup('env', 'FTD_HOST') }}"
+
+    - name: Create FTD objects
+      include_tasks: 01_add-objects.yml
+      loop: "{{ sites }}"
+      loop_control:
+        loop_var: site
+    
+    - name: Deploy changes
+      uri:
+        url: "https://{{ FTD_HOST }}/api/fdm/latest/operational/deploy"
+        method: POST
+        validate_certs: no
+        headers:
+          Content-Type: "application/json"
+          Accept: "application/json"
+          Authorization: "Bearer {{ token }}"
+        status_code: 200
+        body_format: json
+        body: |
+              {
+                "statusMessage": "ANSIBLE-DEPLOYMENT"
+              }
+      retries: 20
+      delay: 20

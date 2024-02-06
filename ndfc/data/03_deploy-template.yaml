@@ -1,0 +1,37 @@
+---
+fabric_name: "pod05"
+switches: 
+  -  conf: | 
+            feature interface-vlan
+            feature hsrp
+            vlan 105
+              name datacenter_server_net
+            interface Vlan105
+              no shutdown
+              no ip redirects
+              ip address 172.18.105.2/24
+              no ipv6 redirects
+              hsrp 1 
+                ip 172.18.105.1
+            interface Ethernet1/3
+              switchport access vlan 105
+              spanning-tree port type edge
+              no shutdown
+     switch_mgmt_ip: '198.18.130.51'
+  -  conf: | 
+            feature interface-vlan
+            feature hsrp
+            vlan 105
+              name datacenter_server_net
+            interface Vlan105
+              no shutdown
+              no ip redirects
+              ip address 172.18.105.3/24
+              no ipv6 redirects
+              hsrp 1 
+                ip 172.18.105.1
+            interface Ethernet1/3
+              switchport access vlan 105
+              spanning-tree port type edge
+              no shutdown
+     switch_mgmt_ip: '198.18.130.52'

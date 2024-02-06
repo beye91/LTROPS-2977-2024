@@ -1,0 +1,160 @@
+---
+- name: Set sentitive variables
+  ansible.builtin.set_fact:
+    FTD_USERNAME: "{{ lookup('env', 'FTD_USERNAME') }}"
+
+- name: Set sentitive variables
+  ansible.builtin.set_fact:
+    FTD_PASSWORD: "{{ lookup('env', 'FTD_PASSWORD') }}"
+    
+- name: Load variables
+  ansible.builtin.include_vars:
+    file: ../data/01_add-objects.yaml
+    name: ftd
+
+- name: Obtain Authentication Token from DNA Center
+  uri:
+    url: "https://{{ FTD_HOST }}/api/fdm/latest/fdm/token"
+    method: POST
+    validate_certs: no
+    headers:
+      Content-Type: "application/json"
+      Accept: "application/json"
+    status_code: 200
+    body_format: json
+    body: |
+          {
+            "grant_type":"password",
+            "username":"{{ FTD_USERNAME }}",
+            "password":"{{ FTD_PASSWORD }}"
+          }
+  register: login_response
+
+- debug: var=login_response
+
+- name: Set Token
+  ansible.builtin.set_fact:
+    token: "{{ login_response.json.access_token }}"
+
+- name: Create network objects
+  uri:
+    url: "https://{{ FTD_HOST }}/api/fdm/latest/object/networks"
+    method: POST
+    validate_certs: no
+    headers:
+      Content-Type: "application/json"
+      Accept: "application/json"
+      Authorization: "Bearer {{ token }}"
+    status_code: 200
+    body_format: json
+    body: |
+          {
+            "value":"{{ item.network_ip_address_space }}",
+            "subType":"NETWORK",
+            "type":"networkobject",
+            "dnsResolution":"IPV4_AND_IPV6",
+            "isSystemDefined":false,
+            "description":"",
+            "name":" {{ item.network_object_name }} ",
+            "version":null
+          }
+  with_items:
+    - '{{ ftd.objects[site] }}'
+  register: network_result
+
+- debug: var=network_result
+
+- name: Set Network ID
+  ansible.builtin.set_fact:
+    network_id: "{{ network_result.results[0].json.id }}" 
+
+- name: Set Network version
+  ansible.builtin.set_fact:
+    network_version: "{{ network_result.results[0].json.version }}" 
+
+- name: Create host objects
+  uri:
+    url: "https://{{ FTD_HOST }}/api/fdm/latest/object/networks"
+    method: POST
+    validate_certs: no
+    headers:
+      Content-Type: "application/json"
+      Accept: "application/json"
+      Authorization: "Bearer {{ token }}"
+    status_code: 200
+    body_format: json
+    body: |
+          {
+            "value":"{{ item.host_ip_address }}",
+            "subType":"HOST",
+            "type":"networkobject",
+            "dnsResolution":"IPV4_AND_IPV6",
+            "isSystemDefined":false,
+            "description":"",
+            "name":" {{ item.host_object_name }} ",
+            "version":null
+          }
+  with_items:
+    - '{{ ftd.objects[site] }}'
+  register: host_result
+
+- name: Set Host ID
+  ansible.builtin.set_fact:
+    host_id: "{{ host_result.results[0].json.id }}"
+
+- name: Set Host version
+  ansible.builtin.set_fact:
+    host_version: "{{ host_result.results[0].json.version }}" 
+
+- name: Create static route
+  uri:
+    url: "https://{{ FTD_HOST }}/api/fdm/latest/devices/default/routing/virtualrouters/42e95fbf-fd5a-42bf-a95f-bffd5a42bfd6/staticrouteentries"
+    method: POST
+    validate_certs: no
+    headers:
+      Content-Type: "application/json"
+      Accept: "application/json"
+      Authorization: "Bearer {{ token }}"
+    status_code: 200
+    body_format: json
+    body: |
+          {
+            "name": "{{ item.static_route_name }}",
+            "iface": {
+              "id": "{{ item.interface_id }}",
+              "type": "physicalinterface",
+              "version": "{{ item.interface_version }}",
+              "name": "{{ item.interface_name }}"
+            },
+            "networks": [
+              {
+                "id": "{{ network_id }}",
+                "subType":"NETWORK",
+                "type":"networkobject",
+                "version": "{{ network_version }}",
+                "name": "{{ item.network_object_name }}"
+              }
+            ],
+            "gateway": {
+              "id": "{{ host_id }}",
+              "subType":"HOST",
+              "type":"networkobject",
+              "version": "{{ host_version }}",
+              "name": "{{ item.host_object_name }}"
+            },
+            "metricValue": 1,
+            "ipType": "IPv4",
+            "type": "staticrouteentry"
+          }            
+  with_items:
+    - '{{ ftd.objects[site] }}'
+
+  register: host_result
+
+- name: Variables in the data file
+  ansible.builtin.shell:
+    cmd: "sed -i 's/{{ site }}_network_id:/{{ site }}_network_id: {{ network_id }}/g' ../data/01_add-objects.yaml"
+
+- name: Variables in the data file
+  ansible.builtin.shell:
+    cmd: "sed -i 's/{{ site }}_host_id:/{{ site }}_host_id: {{ host_id }}/g' ../data/01_add-objects.yaml"

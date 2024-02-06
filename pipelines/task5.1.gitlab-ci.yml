@@ -1,0 +1,48 @@
+variables:
+  IMAGE_NAME_NDFC: $CI_REGISTRY_IMAGE/ndfc 
+  IMAGE_TAG_NDFC: "1.0"
+
+stages:
+  - build
+  - deploy
+
+build_image:
+  stage: build
+  tags:
+    - shell-runner
+  script:
+    - docker build -t $IMAGE_NAME_NDFC:$IMAGE_TAG_NDFC docker/ndfc/.
+
+push_image:
+  stage: build
+  needs:
+    - build_image
+  tags:
+    - shell-runner
+  before_script:
+    - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
+  script:
+    - docker push $IMAGE_NAME_NDFC:$IMAGE_TAG_NDFC
+
+ndfc_ansible_job:
+  stage: deploy
+  needs:
+    - push_image
+  tags:
+    - docker-runner
+  image: $IMAGE_NAME_NDFC:$IMAGE_TAG_NDFC
+  environment: NDFC
+  before_script:
+    - source /root/ansible/bin/activate
+    - chmod -R 700 ndfc
+    - cd ndfc
+  script:
+    - export VAULT_CACERT=/usr/local/share/ca-certificates/ca.crt
+    - export VAULT_TOKEN="$(vault write -field=token auth/jwt/login role=$VAULT_AUTH_ROLE jwt=$CI_JOB_JWT)"
+    - vault kv get -format json ${GITLAB_USER_NAME}/NDFC | jq .data.data | jq -r 'to_entries|map("\(.key)=\(.value|tostring)")|.[]' >> ndfc_vars.env
+    - | 
+      { echo ""; cat ndfc_vars.env | grep ansible; } >> hosts
+    - export $(cat ndfc_vars.env | grep DEVICE | xargs)
+    - "sed -i 's/\"username\": \"\",/\"username\": \"'${DEVICE_USER}'\",/g' data/01_add-devices.yaml"
+    - "sed -i 's/\"password\": \"\",/\"password\": \"'${DEVICE_PASSWORD}'\",/g' data/01_add-devices.yaml"
+    - ansible-playbook playbooks/01_add-devices.yml

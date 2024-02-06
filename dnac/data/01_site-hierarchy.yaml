@@ -1,0 +1,10 @@
+---
+site:
+  area:
+    - name: "POD05"
+      parentName: "Global"
+  building:
+    - name: "CiscoLive"
+      parentName: "Global/POD05"
+      latitude: 52.341419
+      longitude: 4.888043

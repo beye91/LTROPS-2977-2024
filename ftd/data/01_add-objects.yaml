@@ -1,0 +1,30 @@
+---
+objects:
+  datacenter:
+    - interface_id: 8d6c41df-3e5f-465b-8e5a-d336b282f93f
+      interface_version: knnj7elyjbvng
+      interface_name: datacenter
+      network_object_name: POD05_DATACENTER-NETWORK
+      network_ip_address_space: 172.18.105.0/24
+      datacenter_network_id: 2cc3a95e-c52b-11ee-8cfa-872337ea68e7
+      host_object_name: POD05_DATACENTER-ROUTER
+      host_ip_address: 198.18.10.51
+      datacenter_host_id: 2d2180d1-c52b-11ee-8cfa-2d2683a2fa12
+      static_route_name: POD05_DATACENTER_ROUTE
+  branch:
+    - interface_id: 756dc21e-b930-11ee-8a84-9d025b0bc129
+      interface_version: mavjcltidyohp
+      interface_name: branch
+      network_object_name: POD05_BRANCH-NETWORK
+      network_ip_address_space: 172.18.205.0/24
+      branch_network_id: 2ef3a8c9-c52b-11ee-8cfa-510ca6bcd5ba
+      host_object_name: POD05_BRANCH-ROUTER
+      host_ip_address: 198.18.20.51
+      branch_host_id: 2f5773ac-c52b-11ee-8cfa-6f4a7a4ef859
+      static_route_name: POD05_BRANCH_ROUTE
+  policy:
+    policy_name: POD05_DATACENTER-BRANCH-ACCESS
+    source_zone_name: datacenter_zone
+    source_zone_id: b1af33e1-b3e5-11e5-8db8-afdc0be5453e
+    destination_zone_name: branch_zone
+    destination_zone_id: 90c377e0-b3e5-11e5-8db8-651556da7898

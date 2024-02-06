@@ -1,0 +1,111 @@
+---
+- hosts: localhost
+  gather_facts: false
+  tasks:
+    - name: Set sentitive variables
+      ansible.builtin.set_fact:
+        FTD_HOST: "{{ lookup('env', 'FTD_HOST') }}"
+
+    - name: Set sentitive variables
+      ansible.builtin.set_fact:
+        FTD_USERNAME: "{{ lookup('env', 'FTD_USERNAME') }}"
+
+    - name: Set sentitive variables
+      ansible.builtin.set_fact:
+        FTD_PASSWORD: "{{ lookup('env', 'FTD_PASSWORD') }}"
+        
+    - name: Load variables
+      ansible.builtin.include_vars:
+        file: ../data/01_add-objects.yaml
+        name: ftd
+
+    - name: Obtain Authentication Token from DNA Center
+      uri:
+        url: "https://{{ FTD_HOST }}/api/fdm/latest/fdm/token"
+        method: POST
+        validate_certs: no
+        headers:
+          Content-Type: "application/json"
+          Accept: "application/json"
+        status_code: 200
+        body_format: json
+        body: |
+              {
+                "grant_type":"password",
+                "username":"{{ FTD_USERNAME }}",
+                "password":"{{ FTD_PASSWORD }}"
+              }
+      register: login_response
+
+    - debug: var=login_response
+
+    - name: Set Token
+      ansible.builtin.set_fact:
+        token: "{{ login_response.json.access_token }}"
+
+    - name: Create firewall rule
+      uri:
+        url: "https://{{ FTD_HOST }}/api/fdm/latest/policy/accesspolicies/default/accessrules"
+        method: POST
+        validate_certs: no
+        headers:
+          Content-Type: "application/json"
+          Accept: "application/json"
+          Authorization: "Bearer {{ token }}"
+        status_code: 200
+        body_format: json
+        body: |
+              {
+                "name": "{{ ftd.objects.policy.policy_name }}",
+                "sourceZones": [
+                  {
+                    "id": "{{ ftd.objects.policy.source_zone_id }}",
+                    "type": "securityzone",
+                    "name": "{{ ftd.objects.policy.source_zone_name }}"
+                  }
+                ],
+                "destinationZones": [
+                  {
+                    "id": "{{ ftd.objects.policy.destination_zone_id }}",
+                    "type": "securityzone",
+                    "name": "{{ ftd.objects.policy.destination_zone_name }}"
+                  }
+                ],
+                "sourceNetworks": [
+                  {
+                    "id": '{{ ftd.objects.datacenter.0.datacenter_network_id }}',
+                    "type": "networkobject",
+                    "name": '{{ ftd.objects.datacenter.0.network_object_name }}'
+                  }
+                ],
+                "destinationNetworks": [
+                  {
+                    "id": '{{ ftd.objects.branch.0.branch_network_id }}',
+                    "type": "networkobject",
+                    "name": '{{ ftd.objects.branch.0.network_object_name }}'
+                  }
+                ],
+                "ruleAction": "PERMIT",
+                "type": "accessrule"
+              }
+      register: network_result
+
+    - debug: var=network_result
+
+    - name: Deploy changes
+      uri:
+        url: "https://{{ FTD_HOST }}/api/fdm/latest/operational/deploy"
+        method: POST
+        validate_certs: no
+        headers:
+          Content-Type: "application/json"
+          Accept: "application/json"
+          Authorization: "Bearer {{ token }}"
+        status_code: 200
+        body_format: json
+        body: |
+              {
+                "statusMessage": "ANSIBLE-DEPLOYMENT"
+              }
+      retries: 20
+      delay: 20

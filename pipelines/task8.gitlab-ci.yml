@@ -1,0 +1,64 @@
+variables:
+  IMAGE_NAME_ACI: $CI_REGISTRY_IMAGE/aci  
+  IMAGE_TAG_ACI: "1.0"
+
+stages:
+  - build
+  - validate
+  - plan
+
+build_image:
+  stage: build
+  tags:
+    - shell-runner
+  script:
+    - docker build -t $IMAGE_NAME_ACI:$IMAGE_TAG_ACI docker/aci/.
+
+push_image:
+  stage: build
+  needs:
+    - build_image
+  tags:
+    - shell-runner
+  before_script:
+    - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
+  script:
+    - docker push $IMAGE_NAME_ACI:$IMAGE_TAG_ACI
+
+validate:
+  needs:
+    - push_image
+  stage: validate
+  image: $IMAGE_NAME_ACI:$IMAGE_TAG_ACI
+  environment: ACI
+  tags:
+    - docker-runner
+  before_script:
+    - cd aci
+  script:
+    - chmod +x init_file.sh
+    - export VAULT_CACERT=/usr/local/share/ca-certificates/ca.crt
+    - export VAULT_TOKEN="$(vault write -field=token auth/jwt/login role=$VAULT_AUTH_ROLE jwt=$CI_JOB_JWT)"
+    - vault kv get -format json ${GITLAB_USER_NAME}/ACI | jq .data.data | jq -r 'to_entries|map("\(.key)=\(.value|tostring)")|.[]' >> aci_vars.env
+    - export $(cat aci_vars.env | xargs)
+    - ./init_file.sh
+    - terraform validate
+
+plan:
+  needs:
+    - validate
+  stage: plan
+  image: $IMAGE_NAME_ACI:$IMAGE_TAG_ACI
+  environment: ACI
+  tags:
+    - docker-runner
+  before_script:
+    - cd aci
+  script:
+    - chmod +x init_file.sh
+    - export VAULT_CACERT=/usr/local/share/ca-certificates/ca.crt
+    - export VAULT_TOKEN="$(vault write -field=token auth/jwt/login role=$VAULT_AUTH_ROLE jwt=$CI_JOB_JWT)"
+    - vault kv get -format json ${GITLAB_USER_NAME}/ACI | jq .data.data | jq -r 'to_entries|map("\(.key)=\(.value|tostring)")|.[]' >> aci_vars.env
+    - export $(cat aci_vars.env | xargs)
+    - ./init_file.sh
+    - terraform plan

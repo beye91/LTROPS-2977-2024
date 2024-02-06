@@ -1,0 +1,35 @@
+---
+fabric_name: "pod05"
+switches: 
+  -  conf: | 
+            feature lacp
+            feature vpc
+            vpc domain 101
+                peer-switch
+                peer-gateway
+                peer-keepalive destination 198.18.130.52 source 198.18.130.51
+            interface port-channel 101
+                vpc peer-link
+                switchport mode trunk
+                no shutdown
+            int eth1/2
+                switchport mode trunk
+                channel-group 101 mode active
+                no shutdown
+     switch_mgmt_ip: '198.18.130.51'
+  -  conf: | 
+            feature lacp
+            feature vpc
+            vpc domain 101
+                peer-switch
+                peer-gateway
+                peer-keepalive destination 198.18.130.51 source 198.18.130.52
+            interface port-channel 101
+                vpc peer-link
+                switchport mode trunk
+                no shutdown
+            int eth1/2
+                switchport mode trunk
+                channel-group 101 mode active
+                no shutdown
+     switch_mgmt_ip: '198.18.130.52'

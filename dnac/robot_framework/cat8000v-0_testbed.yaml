@@ -1,0 +1,13 @@
+devices:
+  cat8000v-0:
+    type: iosxe
+    os: iosxe
+    credentials:
+      default:
+        username: 
+        password: 
+    connections:
+      cli:
+        protocol: ssh
+        ip: 198.18.130.53
+        port: 22 

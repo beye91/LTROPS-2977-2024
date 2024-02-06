@@ -1,0 +1,5 @@
+---
+device:
+  - name: POD05_Cat8000v-0
+    config: "router bgp 65001 \n neighbor 198.18.5.2 remote-as 65002 \n address-family ipv4 \n neighbor 198.18.5.2 activate"
+    ipAddress: 198.18.130.53

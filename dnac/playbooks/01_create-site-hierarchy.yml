@@ -1,0 +1,35 @@
+---
+- hosts: dnac_servers
+  gather_facts: false
+  tasks:
+    - name: Load variables
+      ansible.builtin.include_vars:
+        file: ../data/01_site-hierarchy.yaml
+        name: site_hierarchy
+        
+    - name: Create area hierarchy
+      cisco.dnac.site_create:
+        site:
+          area:
+            name: '{{ item.name }}'
+            parentName: '{{ item.parentName }}'
+        type: "area"
+      with_items:
+        - '{{ site_hierarchy.site.area }}'
+      register: site_creation
+
+    - name: Pause
+      pause:
+        seconds: 60
+
+    - name: Create building hierarchy
+      cisco.dnac.site_create:
+        site:
+          building:
+            name: '{{ item.name }}'
+            parentName: '{{ item.parentName }}'
+            latitude: 52.341419
+            longitude: 4.888043
+        type: "building"
+      with_items:
+        - '{{ site_hierarchy.site.building }}'
